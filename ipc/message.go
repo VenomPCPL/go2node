@@ -1,9 +1,9 @@
 package ipc
 
 import (
+	"golang.org/x/sys/unix"
 	"os"
 	"strconv"
-	"syscall"
 )
 
 // Message message
@@ -27,8 +27,8 @@ func Recv(sock *os.File, buff []byte, fdCaps int) (int, []*os.File, error) {
 
 	// recvmsg
 	var mbuf []byte
-	mbuf = make([]byte, syscall.CmsgSpace(fdCaps*4))
-	n, oobn, _, _, err := syscall.Recvmsg(sockFd, buff, mbuf, 0)
+	mbuf = make([]byte, unix.CmsgSpace(fdCaps*4))
+	n, oobn, _, _, err := unix.Recvmsg(sockFd, buff, mbuf, 0)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -47,8 +47,8 @@ func parseCmsg(oobn int, mbuf []byte) ([]*os.File, error) {
 	}
 
 	// parse control msgs
-	var msgs []syscall.SocketControlMessage
-	msgs, err := syscall.ParseSocketControlMessage(mbuf[:oobn])
+	var msgs []unix.SocketControlMessage
+	msgs, err := unix.ParseSocketControlMessage(mbuf[:oobn])
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func parseCmsg(oobn int, mbuf []byte) ([]*os.File, error) {
 	files := make([]*os.File, 0, len(msgs))
 	for i := 0; i < len(msgs) && err == nil; i++ {
 		var fds []int
-		fds, err = syscall.ParseUnixRights(&msgs[i])
+		fds, err = unix.ParseUnixRights(&msgs[i])
 
 		for _, fd := range fds {
 			files = append(files, os.NewFile(uintptr(fd), "@/go2node/fd/"+strconv.Itoa(fd)))
@@ -74,7 +74,7 @@ func parseCmsg(oobn int, mbuf []byte) ([]*os.File, error) {
 // Use conn.File() to get a file if you want to put a network connection.
 func Send(sock *os.File, message *Message) error {
 	sockFd := int(sock.Fd())
-	return syscall.Sendmsg(sockFd, message.Data, makeRights(message), nil, 0)
+	return unix.Sendmsg(sockFd, message.Data, makeRights(message), nil, 0)
 }
 
 func makeRights(msg *Message) []byte {
@@ -88,5 +88,5 @@ func makeRights(msg *Message) []byte {
 		fds[i] = int(files[i].Fd())
 	}
 
-	return syscall.UnixRights(fds...)
+	return unix.UnixRights(fds...)
 }

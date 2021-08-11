@@ -1,14 +1,14 @@
 package ipc
 
 import (
+	"golang.org/x/sys/unix"
 	"os"
 	"strconv"
-	"syscall"
 )
 
 // Socketpair create a socketpair
 func Socketpair() ([]*os.File, error) {
-	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM, 0)
+	fds, err := unix.Socketpair(unix.AF_LOCAL, unix.SOCK_STREAM, 0)
 	if err != nil {
 		return nil, err
 	}
